@@ -1,0 +1,10 @@
+<!DOCTYPE aspectj PUBLIC "-//AspectJ//DTD//EN" "http://www.aspectj.org/dtd/aspectj 1 5 0.dtd">
+<aspectj>
+	<weaver options="-verbose -showWeaveInfo -debug">
+		<include within="org.cocome..*"/>
+		<include within="kieker.monitoring.probe.aspectj..*"/>
+	</weaver>
+	<aspects>
+		<aspect name="kieker.monitoring.probe.aspectj.operationExecution.OperationExecutionAspectFull"/>
+	</aspects>
+</aspectj>

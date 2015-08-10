@@ -1,0 +1,54 @@
+# -----------------------------------------------------------------------------
+# DEPLOYMENT PROPERTIES
+# -----------------------------------------------------------------------------
+
+# Resource directory
+rsc_dir=rsc
+
+# Directory for Solver resource files
+solver_rsc_dir=${rsc_dir}/solver
+
+# Directory for Derby resource files
+derby_rsc_dir=${rsc_dir}/derbydb
+
+# Directory for ActiveMQ resource files
+activemq_rsc_dir=${rsc_dir}/activemq
+
+# Path to security policy file
+security_policy=${rsc_dir}/cocomermi.policy
+
+
+
+# Directory for produced data
+var_dir=var
+
+# Directory for the inventory database
+derby_var_dir=${var_dir}/derbydb
+
+# Directory for the persistent message store
+activemq_var_dir=${var_dir}/activemq
+
+# Directory for the solver temporary files
+solver_var_dir=${var_dir}/solver
+
+# Directory for the log files
+log_dir=${var_dir}/log
+
+# Directory for application status files
+status_dir=${var_dir}/status
+
+
+# Location of the RMI registry
+rmiregistry_host=localhost
+rmiregistry_port=1098
+
+# Location of the JNDI naming
+jndiprovider_host=localhost
+jndiprovider_port=61616
+
+
+#
+# When running applications from the console, this
+# property should be set to yes.
+#
+fork=yes
