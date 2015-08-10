@@ -1,0 +1,717 @@
+<?xml version="1.0"?>
+
+<project name="cocome-impl" default="compile">
+  <!--
+    Properties related to the build process.
+  -->
+  <property file="build.properties" />
+
+
+  <!--
+    Properties related to deployment of the system, i.e. persistent
+    storage, log, and status file paths.
+  -->
+  <property file="deployment.properties" />
+
+
+  <!--
+    Properties related to the runtime configuration of the system, i.e.
+    the number of stores, cash desk, etc. The default property file
+    can be overriden by setting the "system.properties" property on
+    the command line to point at the desired property file.
+  -->
+  <property name="system.properties" value="tradingsystem.properties" />
+  <property file="${system.properties}" />
+
+
+  <!--
+    The ant-contrib library provides the conditional, loop control,
+    and propertycopy tasks used in this build file.
+  -->
+  <property name="ant.contrib.jar" value="${ant.lib.dir}/ant-contrib-1.0b3.jar" />
+  <taskdef resource="net/sf/antcontrib/antcontrib.properties" classpath="${ant.contrib.jar}" />
+  <taskdef name="for" classname="net.sf.antcontrib.logic.ForTask" classpath="${ant.contrib.jar}" />
+
+
+  <!--
+    The following properties are meant to be absolute paths passed to applications,
+    so that they are independent of the current working directory when starting Ant.
+  -->
+  <property name="absolute.log.dir" location="${log.dir}" />
+  <property name="absolute.status.dir" location="${status.dir}" />
+  <property name="absolute.security.policy" location="${security.policy}" />
+  <property name="absolute.derby.var.dir" location="${derby.var.dir}" />
+  <property name="absolute.activemq.dir" location="${activemq.dir}" />
+  <property name="absolute.activemq.var.dir" location="${activemq.var.dir}" />
+  <property name="absolute.solver.dir" location="${solver.dir}" />
+  <property name="absolute.solver.var.dir" location="${solver.var.dir}" />
+
+
+  <!--
+    Master class path for trading system applications and services.
+  -->
+  <path id="master-classpath">
+    <fileset dir="${lib.dir}">
+      <include name="*.jar" />
+    </fileset>
+    <fileset dir="${hibernate.lib.dir}">
+      <include name="*.jar" />
+    </fileset>
+    <fileset dir="${derby.lib.dir}">
+      <include name="*.jar" />
+    </fileset>
+    <fileset dir="${jms.lib.dir}">
+      <include name="*.jar" />
+    </fileset>
+    <fileset dir="${activemq.dir}/lib">
+      <include name="**/*.jar" />
+    </fileset>
+
+    <pathelement location="${build.dir}" />
+  </path>
+
+
+  <!-- *********************************************************************************** -->
+  <!-- The following targets are meant to keep configuration up to date.                   -->
+  <!-- *********************************************************************************** -->
+
+  <!-- Filesystem -->
+  <condition property="var.configured">
+    <and>
+      <available type="dir" file="${log.dir}" />
+      <available type="dir" file="${status.dir}" />
+    </and>
+  </condition>
+
+  <target name="configureVar" unless="${var.configured}">
+    <mkdir dir="${log.dir}" />
+    <mkdir dir="${status.dir}" />
+  </target>
+
+
+  <!-- JNDI -->
+
+  <!--
+    Generates JNDI configuration into "jndi.config", but only if the target file is
+    missing or is older than "jndi.config.base" or "system.properties".
+  -->
+  <property name="jndi.config" value="${build.dir}/jndi.properties" />
+  <property name="jndi.config.base" value="${rsc.dir}/jndi.properties.base" />
+
+  <uptodate property="jndi.configured" targetfile="${jndi.config}">
+    <srcfiles file="${system.properties}" />
+    <srcfiles file="${jndi.config.base}" />
+  </uptodate>
+
+  <target name="configureJndi" unless="${jndi.configured}">
+    <antcall target="createJndiConfig" />
+  </target>
+
+
+  <!--
+    Generates JNDI configuration from "jndi.config.base" to "jndi.config.output"
+    based on the configuration of the trading system found in tradingsystem.properties.
+  -->
+  <target name="createJndiConfig"
+    description="Generates JNDI configuration from tradingsystem.properties"
+  >
+    <tstamp><format property="jndi.config.stamp" pattern="yyyy/MM/dd hh:mm:ss" /></tstamp>
+
+    <concat destfile="${jndi.config}">
+      <header trimleading="yes"># JNDI configuration generated from ${system.properties} on ${jndi.config.stamp}${line.separator}</header>
+      <fileset file="${jndi.config.base}" />
+    </concat>
+
+    <for list="${trading.stores}" delimiter="," param="config.store">
+      <sequential>
+        <propertycopy name="store.name" from="@{config.store}.name" silent="true" override="true" />
+        <propertycopy name="store.cashdesks" from="@{config.store}.cashdesks" silent="true" override="true" />
+
+        <echo file="${jndi.config}" append="true">topic.${store.name} = inventory.${store.name}${line.separator}</echo>
+
+        <if>
+          <not><equals arg1="${store.cashdesks}" arg2="0"/></not>
+          <then>
+            <for begin="0" end="${store.cashdesks}" param="cashdesk.number"><sequential>
+              <if>
+                <not><equals arg1="@{cashdesk.number}" arg2="${store.cashdesks}" /></not>
+                <then>
+                  <echo file="${jndi.config}" append="true">topic.${store.name}/CashDesk@{cashdesk.number} = cashdesk.${store.name}.CashDesk@{cashdesk.number}${line.separator}</echo>
+                </then>
+              </if>
+            </sequential></for>
+          </then>
+        </if>
+
+        <echo file="${jndi.config}" append="true">${line.separator}</echo>
+      </sequential>
+    </for>
+    <echo file="${jndi.config}" append="true">java.naming.provider.url = failover:tcp://${jndiprovider.host}:${jndiprovider.port}${line.separator}</echo>
+  </target>
+
+
+  <!-- Log4j -->
+
+  <property name="log4j.config" value="${build.dir}/log4j.properties" />
+  <property name="log4j.config.source" value="${rsc.dir}/log4j.properties" />
+  <uptodate property="log4j.configured" srcfile="${log4j.config.source}" targetfile="${log4j.config}" />
+
+  <target name="configureLog4j" unless="${log4j.configured}">
+    <copy file="${log4j.config.source}" tofile="${log4j.config}" />
+  </target>
+
+
+  <!-- Hibernate -->
+
+  <property name="hibernate.config" value="${build.dir}/META-INF/persistence.xml" />
+  <property name="hibernate.config.source" value="${rsc.dir}/persistence.xml" />
+  <uptodate property="hibernate.configured" srcfile="${hibernate.config.source}" targetfile="${hibernate.config}" />
+
+  <target name="configureHibernate" unless="${hibernate.configured}">
+    <copy file="${hibernate.config.source}" tofile="${hibernate.config}" />
+  </target>
+
+
+  <!-- Application -->
+
+  <target name="configureApplication" depends="configureVar,configureLog4j,configureJndi,configureHibernate" />
+
+
+  <!-- *********************************************************************************** -->
+  <!-- Infrastructure services                                                             -->
+  <!-- *********************************************************************************** -->
+
+  <target
+    name="startInfrastructure"
+    description="Starts the infrastructure services such as RMI registry, database server, and message broker"
+  >
+    <parallel>
+      <antcall target="startRmiRegistry" />
+      <antcall target="startDatabaseServer" />
+      <antcall target="startMessageBroker" />
+    </parallel>
+  </target>
+
+  <target
+    name="stopInfrastructure"
+    description="Stops the message broker and database server (leaves RMI registry running)"
+  >
+    <parallel>
+      <antcall target="stopMessageBroker" />
+      <antcall target="stopDatabaseServer" />
+    </parallel>
+  </target>
+
+
+  <!-- RMI registry -->
+
+  <target name="startRmiRegistry" depends="configureVar,configureLog4j">
+    <java classname="org.cocome.tradingsystem.util.RmiRegistryLauncherMain" fork="${fork}" failonerror="true">
+      <classpath refid="master-classpath" />
+      	<jvmarg value="-javaagent:kieker-1.7_aspectj.jar"/>
+      	<classpath path="lib"/>
+      <sysproperty key="java.security.policy" value="${absolute.security.policy}" />
+      <sysproperty key="application.log.file" value="${absolute.log.dir}/RmiRegistry.log" />
+      <sysproperty key="application.status.dir" value="${absolute.status.dir}" />
+      <arg line="${rmiregistry.port}" />
+    </java>
+  </target>
+	
+
+  <!-- Inventory database -->
+
+  <macrodef name="executeDerbyLauncher">
+    <attribute name="jvmargs" default="" />
+    <attribute name="args" />
+    <element name="java-elements" optional="yes"/>
+
+    <sequential>
+      <java jar="${derby.dir}/lib/derbyrun.jar" fork="true" failonerror="true" maxmemory="1G">
+        <sysproperty key="derby.system.home" value="${absolute.derby.var.dir}" />
+      	<jvmarg value="-javaagent:kieker-1.7_aspectj.jar"/>
+      	<classpath path="lib"/>
+        <java-elements />
+        <jvmarg line="@{jvmargs}" />
+        <arg line="@{args}" />
+      </java>
+    </sequential>
+  </macrodef>
+
+  <target name="configureDatabaseServer" depends="configureVar">
+    <mkdir dir="${derby.var.dir}" />
+    <copy todir="${derby.var.dir}" preservelastmodified="true">
+      <fileset dir="${derby.rsc.dir}">
+        <include name="*.*" />
+      </fileset>
+    </copy>
+  </target>
+
+  <target name="startDatabaseServer" depends="configureDatabaseServer">
+    <executeDerbyLauncher jvmargs="-server" args="server start" />
+  </target>
+
+  <target name="startDatabaseServerWithCache" depends="configureDatabaseServer">
+    <executeDerbyLauncher jvmargs="-server -Dderby.storage.pageCacheSize=${cache}" args="server start" />
+  </target>
+
+  <target name="stopDatabaseServer" depends="configureDatabaseServer">
+    <executeDerbyLauncher args="server shutdown" />
+  </target>
+
+  <target name="debugDatabase" depends="configureDatabaseServer">
+    <executeDerbyLauncher args="ij">
+      <java-elements>
+        <!-- It would be better to extract the URL from configuration file... -->
+        <sysproperty key="ij.connection.inventory" value="jdbc:derby://localhost:1527/inventory" />
+      </java-elements>
+    </executeDerbyLauncher>
+  </target>
+
+
+  <!-- Message broker -->
+
+  <macrodef name="executeActiveMQLauncher">
+    <attribute name="jvmargs" default="" />
+    <attribute name="args" />
+
+    <sequential>
+      <java jar="${activemq.dir}/bin/run.jar" fork="true" failonerror="yes">
+      	<jvmarg value="-javaagent:kieker-1.7_aspectj.jar"/>
+      	<classpath path="lib"/>
+        <sysproperty key="com.sun.management.jmxremote" value="true" />
+        <sysproperty key="activemq.home" value="${absolute.activemq.dir}" />
+        <sysproperty key="activemq.base" value="${absolute.activemq.var.dir}" />
+        <sysproperty key="activemq.classpath" value="${absolute.activemq.var.dir}/conf" />
+        <jvmarg line="@{jvmargs}" />
+        <arg line="@{args}" />
+      </java>
+    </sequential>
+  </macrodef>
+
+
+  <target name="configureMessageBroker" depends="configureVar">
+    <mkdir dir="${activemq.var.dir}/conf" />
+    <copy todir="${activemq.var.dir}/conf" preservelastmodified="true">
+      <fileset dir="${activemq.rsc.dir}">
+        <include name="*.*" />
+      </fileset>
+    </copy>
+  </target>
+
+  <target name="startMessageBroker" depends="configureMessageBroker">
+    <executeActiveMQLauncher jvmargs="-server" args="start" />
+  </target>
+
+  <target name="stopMessageBroker" depends="configureMessageBroker">
+    <executeActiveMQLauncher args="stop --all" />
+  </target>
+
+
+  <!-- *********************************************************************************** -->
+  <!-- Database initialization                                                             -->
+  <!-- *********************************************************************************** -->
+
+  <target name="fillDB" depends="configureVar,configureLog4j,configureHibernate"
+    description="Fills the database with generated data"
+  >
+    <java classname="org.cocome.tradingsystem.inventory.data.generator.ItemizedDatabaseFiller" fork="true" failonerror="true" maxmemory="1G">
+      <classpath refid="master-classpath" />
+      	<jvmarg value="-javaagent:kieker-1.7_aspectj.jar"/>
+      	<classpath path="lib"/>
+      <sysproperty key="application.log.file" value="${absolute.log.dir}/FillDB.log" />
+      <assertions>
+        <enable/>
+      </assertions>
+      <arg value="10000"/>
+    </java>
+  </target>
+
+
+  <target name="itemizedFillDB" depends="configureVar,configureLog4j,configureHibernate"
+    description="Fills the database with generated data based on number of stock items"
+  >
+    <!-- Set properties to empty string if they are not set -->
+    <property name="cashdesks" value="" />
+    <property name="outdir" value="" />
+
+    <java classname="org.cocome.tradingsystem.inventory.data.generator.ItemizedDatabaseFiller" fork="true" failonerror="true" maxmemory="1G">
+      <classpath refid="master-classpath" />
+      	<jvmarg value="-javaagent:kieker-1.7_aspectj.jar"/>
+      	<classpath path="lib"/>
+      <sysproperty key="application.log.file" value="${absolute.log.dir}/ItemizedFillDB.log" />
+      <assertions>
+        <enable/>
+      </assertions>
+      <arg value="${items}"/>
+      <arg value="${cashdesks}"/>
+      <arg value="${outdir}"/>
+    </java>
+  </target>
+
+
+  <target name="storizedFillDB" depends="configureVar,configureLog4j,configureHibernate"
+    description="Fills the database with generated data based on number of stores"
+  >
+    <!-- Set properties to empty string if they are not set -->
+    <property name="cashdesks" value="" />
+    <property name="outdir" value="" />
+
+    <java classname="org.cocome.tradingsystem.inventory.data.generator.StorizedDatabaseFiller" fork="true" failonerror="true" maxmemory="1G">
+      <classpath refid="master-classpath" />
+      	<jvmarg value="-javaagent:kieker-1.7_aspectj.jar"/>
+      	<classpath path="lib"/>
+      <assertions>
+        <enable/>
+      </assertions>
+      <sysproperty key="application.log.file" value="${absolute.log.dir}/StorizedFillDB.log" />
+      <arg value="${stores}"/>
+      <arg value="${cashdesks}"/>
+      <arg value="${outdir}"/>
+    </java>
+  </target>
+
+
+  <target name="testFillDB" depends="configureVar,configureLog4j,configureHibernate"
+    description="Fills the database with generated data suitable for testing"
+  >
+    <!-- Set properties to empty string if they are not set -->
+    <property name="cashdesks" value="" />
+    <property name="outdir" value="" />
+
+    <java classname="org.cocome.tradingsystem.inventory.data.generator.TestDatabaseFiller" fork="true" failonerror="true" maxmemory="1G">
+      <classpath refid="master-classpath" />
+      	<jvmarg value="-javaagent:kieker-1.7_aspectj.jar"/>
+      	<classpath path="lib"/>
+      <assertions>
+        <enable/>
+      </assertions>
+      <sysproperty key="application.log.file" value="${absolute.log.dir}/TestFillDB.log" />
+      <arg value="${stores}"/>
+      <arg value="${cashdesks}"/>
+      <arg value="${outdir}"/>
+    </java>
+  </target>
+
+
+  <!-- *********************************************************************************** -->
+  <!-- Trading system                                                                      -->
+  <!-- *********************************************************************************** -->
+
+  <target name="startInventory" depends="configureApplication"
+    description="Starts the inventory application of the trading system according to configuration in tradingsystem.properties"
+  >
+    <parallel>
+      <!-- antcall target="startBank" /-->
+      <!-- antcall target="startProductDispatcher" /-->
+      <foreach list="${trading.stores}" delimiter="," target="startStoreApplication" param="config.store" inheritall="true" inheritrefs="true" parallel="true" />
+      <foreach list="${trading.reportings}" delimiter="," target="startReportingApplication" param="config.reporting" inheritall="true" inheritrefs="true" parallel="true" />
+    </parallel>
+  </target>
+
+
+  <target name="startInventoryConsoles" depends="configureApplication"
+    description="Starts the graphical consoles for store and reporting applications defined in tradingsystem.properties">
+    <parallel>
+      <foreach list="${trading.stores}" delimiter="," target="startStoreConsole" param="config.store" inheritall="true" inheritrefs="true" parallel="true" />
+      <foreach list="${trading.reportings}" delimiter="," target="startReportingConsole" param="config.reporting" inheritall="true" inheritrefs="true" parallel="true" />
+    </parallel>
+  </target>
+
+
+  <target name="startCashDeskLines" depends="configureApplication"
+    description="Starts cash desk line coordinator and cash desks for each store defined in tradingsystem.properties"
+  >
+    <foreach list="${trading.stores}" delimiter="," target="startCashDeskLine" param="config.store" inheritall="true" inheritrefs="true" parallel="true" />
+  </target>
+
+
+  <!-- ********************** Inventory ************************************************* -->
+
+  <macrodef name="startApplication">
+    <attribute name="classname" />
+    <attribute name="jvmargs" default="" />
+    <attribute name="logname" default="default" />
+    <attribute name="args" />
+    <attribute name="fork" default="${fork}" />
+    <element name="java-elements" optional="yes"/>
+
+    <sequential>
+      <java classname="@{classname}" fork="@{fork}" failonerror="true">
+        <classpath refid="master-classpath" />
+      	<jvmarg value="-javaagent:kieker-1.7_aspectj.jar"/>
+      	<classpath path="lib"/>
+        <sysproperty key="com.sun.management.jmxremote" value="true" />
+        <sysproperty key="java.security.policy" value="${absolute.security.policy}" />
+        <sysproperty key="application.log.file" value="${absolute.log.dir}/@{logname}.log" />
+        <sysproperty key="application.status.dir" value="${absolute.status.dir}" />
+        <java-elements />
+        <jvmarg line="@{jvmargs}" />
+        <arg line="@{args}" />
+      </java>
+    </sequential>
+  </macrodef>
+	
+	<macrodef name="startApplication2">
+	    <attribute name="classname" />
+	    <attribute name="jvmargs" default="" />
+	    <attribute name="logname" default="default" />
+	    <attribute name="args" />
+	    <attribute name="fork" default="${fork}" />
+	    <element name="java-elements" optional="yes"/>
+
+	    <sequential>
+	      <java classname="@{classname}" fork="@{fork}" failonerror="true">
+	        <classpath refid="master-classpath" />
+	      	<classpath path="lib/kieker-1.7.jar"/>
+	        <sysproperty key="com.sun.management.jmxremote" value="true" />
+	        <sysproperty key="java.security.policy" value="${absolute.security.policy}" />
+	        <sysproperty key="application.log.file" value="${absolute.log.dir}/@{logname}.log" />
+	        <sysproperty key="application.status.dir" value="${absolute.status.dir}" />
+	        <java-elements />
+	        <jvmarg line="@{jvmargs}" />
+	        <arg line="@{args}" />
+	      </java>
+	    </sequential>
+	  </macrodef>
+	
+	<macrodef name="startApplication3">
+		<attribute name="classname" />
+		    <attribute name="jvmargs" default="" />
+		    <attribute name="logname" default="default" />
+		    <attribute name="args" />
+		    <attribute name="fork" default="${fork}" />
+		    <element name="java-elements" optional="yes"/>
+
+		    <sequential>
+		      <java classname="@{classname}" fork="@{fork}" failonerror="true">
+		        <classpath refid="master-classpath" />
+		      	<jvmarg value="-javaagent:kieker-1.7_aspectj.jar"/>
+		      	<!-- jvmarg value="-debug"/ -->
+		      	<classpath path="lib"/>
+		      	<classpath path="lib/kieker-1.7.jar"/>
+		      	<sysproperty key="org.aspectj.weaver.loadtime.configuration" value="file:/home/rju/Projects/CoCoME/CoCoME-SPP/trunk/src/cocome-impl/lib/META-INF/aop.xml"/>
+		      	<sysproperty key="org.aspectj.weaver.debug" value="true"/>
+		      	<sysproperty key="org.aspectj.weaving.messages" value="true"/>
+		      	<sysproperty key="org.aspectj.weaver.showWeaveInfo" value="true" />
+		      	<sysproperty key="aj.weaving.verbose" value="true" />
+		        <sysproperty key="com.sun.management.jmxremote" value="true" />
+		        <sysproperty key="java.security.policy" value="${absolute.security.policy}" />
+		        <sysproperty key="application.log.file" value="${absolute.log.dir}/@{logname}.log" />
+		        <sysproperty key="application.status.dir" value="${absolute.status.dir}" />
+		        <java-elements />
+		        <jvmarg line="@{jvmargs}" />
+		        <arg line="@{args}" />
+		      </java>
+		    </sequential>
+		  </macrodef>
+
+
+  <!-- Store -->
+
+  <target name="configureSolver">
+    <mkdir dir="${solver.var.dir}" />
+    <copy todir="${solver.var.dir}" preservelastmodified="true">
+      <fileset dir="${solver.rsc.dir}">
+        <include name="*.*" />
+      </fileset>
+    </copy>
+  </target>
+
+  <target name="startStoreApplication">
+    <propertycopy name="store.name" from="${config.store}.name" silent="true" override="true" />
+
+    <startApplication jvmargs="-server" fork="true"
+      classname="org.cocome.tradingsystem.inventory.application.store.StoreApplicationLauncherMain"
+      args="${rmiregistry.host} ${rmiregistry.port} ${store.name} ${dispatcher.name}"
+      logname="StoreApplication.${store.name}"
+    />
+  </target>
+
+
+  <target name="startStoreConsole">
+    <propertycopy name="store.name" from="${config.store}.name" silent="true" override="true" />
+    <propertycopy name="store.console" from="${config.store}.console" silent="true" override="true" />
+
+    <if>
+      <istrue value="${store.console}" />
+      <then>
+        <startApplication
+          classname="org.cocome.tradingsystem.inventory.console.store.StoreConsoleLauncherMain"
+          args="${rmiregistry.host} ${rmiregistry.port} ${store.name}"
+          logname="StoreConsole.${store.name}"
+        />
+      </then>
+    </if>
+  </target>
+
+
+  <!-- Reporting -->
+
+  <target name="startReportingApplication">
+    <propertycopy name="reporting.name" from="${config.reporting}.name" silent="true" override="true" />
+
+    <startApplication jvmargs="-server" fork="true"
+      classname="org.cocome.tradingsystem.inventory.application.reporting.ReportingApplicationLauncherMain"
+      args="${rmiregistry.host} ${rmiregistry.port} ${reporting.name}"
+      logname="ReportingApplication.${reporting.name}"
+    />
+  </target>
+
+
+  <target name="startReportingConsole">
+    <propertycopy name="reporting.name" from="${config.reporting}.name" silent="true" override="true" />
+    <propertycopy name="reporting.console" from="${config.reporting}.console" silent="true" override="true" />
+
+    <if>
+      <istrue value="${reporting.console}" />
+      <then>
+        <startApplication
+          classname="org.cocome.tradingsystem.inventory.console.reporting.ReportingConsoleLauncherMain"
+          args="${rmiregistry.host} ${rmiregistry.port} ${reporting.name}"
+          logname="ReportingConsole.${reporting.name}"
+        />
+      </then>
+    </if>
+  </target>
+
+
+  <!-- Product Dispatcher -->
+
+  <target name="startProductDispatcher" depends="configureVar,configureLog4j,configureSolver">
+    <startApplication3 jvmargs="-server"
+      classname="org.cocome.tradingsystem.inventory.application.productdispatcher.ProductDispatcherLauncherMain"
+      logname="ProductDispatcher.${dispatcher.name}"
+      args="${rmiregistry.host} ${rmiregistry.port} ${dispatcher.name}"
+    >
+      <java-elements>
+        <sysproperty key="ampl.home" value="${absolute.solver.dir}" />
+        <sysproperty key="ampl.data" value="${absolute.solver.var.dir}" />
+      </java-elements>
+    </startApplication3>
+  </target>
+
+
+  <!-- Bank -->
+
+  <target name="startBank" depends="configureVar,configureLog4j" unless="testing">
+    <startApplication2 jvmargs="-server"
+      classname="org.cocome.tradingsystem.external.BankLauncherMain"
+      logname="Bank.${bank.name}"
+      args="${rmiregistry.host} ${rmiregistry.port} ${bank.name}"
+    />
+  </target>
+	
+
+  <!-- ********************** Cash Desk Line *********************************************** -->
+
+  <target name="startCashDeskLine">
+    <propertycopy name="cashdeskline.store" from="${config.store}.name" silent="true" override="true" />
+    <propertycopy name="cashdeskline.cashdesks" from="${config.store}.cashdesks" silent="true" override="true" />
+    <propertycopy name="cashdeskline.cashdeskui" from="${config.store}.cashdeskui" silent="true" override="true" />
+
+    <!-- Start the cash desk line if there are any cash desks to be started. -->
+    <if>
+      <not><equals arg1="${cashdeskline.cashdesks}" arg2="0"/></not>
+      <then>
+        <parallel>
+          <antcall target="startCoordinator">
+            <param name="coordinator.store" value="${cashdeskline.store}" />
+          </antcall>
+
+          <for begin="0" end="${cashdeskline.cashdesks}" param="cashdesk.number" parallel="true">
+            <sequential>
+              <if>
+                <not><equals arg1="@{cashdesk.number}" arg2="${cashdeskline.cashdesks}" /></not>
+                <then>
+                  <antcall target="startCashDesk">
+                    <param name="cashdesk.store" value="${cashdeskline.store}" />
+                    <param name="cashdesk.name" value="CashDesk@{cashdesk.number}" />
+                  </antcall>
+                </then>
+              </if>
+            </sequential>
+          </for>
+        </parallel>
+      </then>
+    </if>
+  </target>
+
+
+  <target name="startCoordinator">
+    <condition property="coordinator.policy" value="testing" else="">
+      <isset property="testing" />
+    </condition>
+    <startApplication fork="true"
+      classname="org.cocome.tradingsystem.cashdeskline.coordinator.CoordinatorLauncherMain"
+      args="${coordinator.store}"
+      logname="Coordinator.${coordinator.store}"
+    >
+      <java-elements>
+        <sysproperty key="org.cocome.tradingsystem.cashdeskline.coordinator.ExpressModePolicy" value="${coordinator.policy}" />
+      </java-elements>
+    </startApplication>
+  </target>
+
+
+  <target name="startCashDesk">
+    <condition property="cashdesk.ui" value="" else="no-gui">
+      <istrue value="${cashdeskline.cashdeskui}" />
+    </condition>
+    <startApplication fork="true"
+      classname="org.cocome.tradingsystem.cashdeskline.cashdesk.CashDeskLauncherMain"
+      args="${rmiregistry.host} ${rmiregistry.port} ${cashdesk.name} ${cashdesk.store} ${bank.name} ${cashdesk.ui}"
+      logname="CashDesk.${cashdesk.store}.${cashdesk.name}"
+    />
+  </target>
+
+
+  <!-- *********************************************************************************** -->
+  <!-- Build targets                                                                       -->
+  <!-- *********************************************************************************** -->
+
+  <target name="compile" description="Compile project source files">
+    <mkdir dir="${build.dir}" />
+
+    <javac destdir="${build.dir}" source="1.5" target="1.5" debug="true" deprecation="true" optimize="false" failonerror="true" includeantruntime="no">
+      <compilerarg value="-Xlint:all" />
+      <compilerarg value="-Xlint:-serial" />
+      <classpath refid="master-classpath" />
+      <src path="${src.dir}" />
+    </javac>
+  </target>
+
+
+  <target name="javadoc" description="Generates JavaDoc documentation">
+    <mkdir dir="${javadoc.dir}" />
+
+    <javadoc
+      sourcepath="${src.dir}" source="1.5" packagenames="org.cocome.*" destdir="${javadoc.dir}" locale="en"
+      windowtitle="${project.name} JavaDoc" doctitle="${project.name}"
+      header="${project.name}" bottom="${project.name} - ${project.version}"
+      author="yes" version="yes" private="no" linksource="yes" breakiterator="yes" use="yes" includenosourcepackages="yes" defaultexcludes="yes"
+    >
+      <classpath refid="master-classpath" />
+    </javadoc>
+  </target>
+
+
+  <target name="clean">
+    <delete file="${log.dir}" />
+    <delete file="${status.dir}" />
+    <delete file="${solver.var.dir}" />
+  </target>
+
+  <target name="deleteDB" description="Deletes the local database data">
+    <delete dir="${derby.var.dir}" />
+  </target>
+
+  <target name="deleteMQ" description="Deletes the local message queue data">
+    <delete dir="${activemq.var.dir}" />
+  </target>
+
+  <target name="cleanall" depends="clean,deleteDB,deleteMQ">
+    <delete dir="${javadoc.dir}" />
+    <delete dir="${build.dir}" />
+  </target>
+
+</project>

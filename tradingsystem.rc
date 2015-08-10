@@ -1,0 +1,70 @@
+#
+# This property should be set for testing purposes_
+#
+# When set, the default Bank implementation will not be
+# started (instead, the Test Driver will provide its own
+# implementation), and the policy for entering express
+# mode will use lower threshold_
+#
+# testing
+
+
+# -----------------------------------------------------------------------------
+# EXTERNAL SERVICES: Bank (one per enterprise)
+# -----------------------------------------------------------------------------
+
+# Name of the Bank
+bank_name=Bank
+
+
+# -----------------------------------------------------------------------------
+# INTERNAL SERVICES: Product Dispatcher (one per enterprise)
+# -----------------------------------------------------------------------------
+
+dispatcher_name=Dispatcher
+
+
+# -----------------------------------------------------------------------------
+# INTERNAL SERVICES: Reporting (one or more per enterprise)
+# -----------------------------------------------------------------------------
+
+trading_reportings=reporting0
+
+#
+
+default_reporting_console=true
+
+#
+
+reporting0_name=Reporting0
+reporting0_console=${default_reporting_console}
+
+
+# -----------------------------------------------------------------------------
+# INTERNAL SERVICES: Inventory & Cash Desk Lines
+# -----------------------------------------------------------------------------
+
+trading_stores=store0,store1,store2
+
+#
+
+default_store_cashdesks=1
+default_store_cashdeskui=true
+default_store_console=true
+
+#
+
+store0_name=Store0
+store0_console=${default_store_console}
+store0_cashdesks=${default_store_cashdesks}
+store0_cashdeskui=${default_store_cashdeskui}
+
+store1_name=Store1
+store1_console=${default_store_console}
+store1_cashdesks=${default_store_cashdesks}
+store1_cashdeskui=${default_store_cashdeskui}
+
+store2_name=Store2
+store2_console=${default_store_console}
+store2_cashdesks=${default_store_cashdesks}
+store2_cashdeskui=${default_store_cashdeskui}

@@ -1,0 +1,28 @@
+This folder should contain the AMPL/CPLEX solver developed by AMPL
+Optimization LLC (www.ampl.com). The solver is used to determine the optimal
+amounts and locations of stock items to transfer between stores when a store
+runs low on particular stock item.
+
+The student edition of the AMPL software can be downloaded from the AMPL web
+site, provided you use the software for educational/non-commercial purposes.
+
+Along with AMPL, you will also need the CPLEX solver, which can be obtained
+either from IBM through their Academic Initiative programme, or as a student
+edition from AMPL website. Futher download details can be found at
+
+    http://www.ampl.com/DOWNLOADS/details.html
+
+
+Please make sure your use of the AMPL/CPLEX software does not violate the
+Student Edition or IBM Academic Initiative licensing conditions.
+
+The following files are required for solver operation on Linux:
+
+    ampl
+    cplex
+
+The following files are required for solver operation on Windows:
+
+    ampl.exe
+    cplex.exe
+    cplex112.dll (may change with CPLEX version)

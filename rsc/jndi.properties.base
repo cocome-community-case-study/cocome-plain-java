@@ -1,0 +1,7 @@
+java.naming.factory.initial = org.apache.activemq.jndi.ActiveMQInitialContextFactory
+
+# the JNDI name the connection factory should appear as
+connectionFactoryNames = ConnectionFactory
+
+# register topic in JNDI using the form
+# topic.[jndiName] = [physicalName]
