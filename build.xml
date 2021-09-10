@@ -208,7 +208,7 @@
   <target name="startRmiRegistry" depends="configureVar,configureLog4j">
     <java classname="org.cocome.tradingsystem.util.RmiRegistryLauncherMain" fork="${fork}" failonerror="true">
       <classpath refid="master-classpath" />
-      	<jvmarg value="-javaagent:kieker-1.7_aspectj.jar"/>
+<!--      	<jvmarg value="-javaagent:kieker-1.7_aspectj.jar"/>-->
       	<classpath path="lib"/>
       <sysproperty key="java.security.policy" value="${absolute.security.policy}" />
       <sysproperty key="application.log.file" value="${absolute.log.dir}/RmiRegistry.log" />
@@ -228,7 +228,7 @@
     <sequential>
       <java jar="${derby.dir}/lib/derbyrun.jar" fork="true" failonerror="true" maxmemory="1G">
         <sysproperty key="derby.system.home" value="${absolute.derby.var.dir}" />
-      	<jvmarg value="-javaagent:kieker-1.7_aspectj.jar"/>
+<!--      	<jvmarg value="-javaagent:kieker-1.7_aspectj.jar"/>-->
       	<classpath path="lib"/>
         <java-elements />
         <jvmarg line="@{jvmargs}" />
@@ -276,7 +276,7 @@
 
     <sequential>
       <java jar="${activemq.dir}/bin/run.jar" fork="true" failonerror="yes">
-      	<jvmarg value="-javaagent:kieker-1.7_aspectj.jar"/>
+<!--      	<jvmarg value="-javaagent:kieker-1.7_aspectj.jar"/>-->
       	<classpath path="lib"/>
         <sysproperty key="com.sun.management.jmxremote" value="true" />
         <sysproperty key="activemq.home" value="${absolute.activemq.dir}" />
@@ -316,7 +316,7 @@
   >
     <java classname="org.cocome.tradingsystem.inventory.data.generator.ItemizedDatabaseFiller" fork="true" failonerror="true" maxmemory="1G">
       <classpath refid="master-classpath" />
-      	<jvmarg value="-javaagent:kieker-1.7_aspectj.jar"/>
+<!--      	<jvmarg value="-javaagent:kieker-1.7_aspectj.jar"/>-->
       	<classpath path="lib"/>
       <sysproperty key="application.log.file" value="${absolute.log.dir}/FillDB.log" />
       <assertions>
@@ -336,7 +336,7 @@
 
     <java classname="org.cocome.tradingsystem.inventory.data.generator.ItemizedDatabaseFiller" fork="true" failonerror="true" maxmemory="1G">
       <classpath refid="master-classpath" />
-      	<jvmarg value="-javaagent:kieker-1.7_aspectj.jar"/>
+<!--      	<jvmarg value="-javaagent:kieker-1.7_aspectj.jar"/>-->
       	<classpath path="lib"/>
       <sysproperty key="application.log.file" value="${absolute.log.dir}/ItemizedFillDB.log" />
       <assertions>
@@ -358,7 +358,7 @@
 
     <java classname="org.cocome.tradingsystem.inventory.data.generator.StorizedDatabaseFiller" fork="true" failonerror="true" maxmemory="1G">
       <classpath refid="master-classpath" />
-      	<jvmarg value="-javaagent:kieker-1.7_aspectj.jar"/>
+<!--      	<jvmarg value="-javaagent:kieker-1.7_aspectj.jar"/>-->
       	<classpath path="lib"/>
       <assertions>
         <enable/>
@@ -380,7 +380,7 @@
 
     <java classname="org.cocome.tradingsystem.inventory.data.generator.TestDatabaseFiller" fork="true" failonerror="true" maxmemory="1G">
       <classpath refid="master-classpath" />
-      	<jvmarg value="-javaagent:kieker-1.7_aspectj.jar"/>
+<!--      	<jvmarg value="-javaagent:kieker-1.7_aspectj.jar"/>-->
       	<classpath path="lib"/>
       <assertions>
         <enable/>
@@ -438,7 +438,7 @@
     <sequential>
       <java classname="@{classname}" fork="@{fork}" failonerror="true">
         <classpath refid="master-classpath" />
-      	<jvmarg value="-javaagent:kieker-1.7_aspectj.jar"/>
+<!--      	<jvmarg value="-javaagent:kieker-1.7_aspectj.jar"/>-->
       	<classpath path="lib"/>
         <sysproperty key="com.sun.management.jmxremote" value="true" />
         <sysproperty key="java.security.policy" value="${absolute.security.policy}" />
@@ -485,15 +485,15 @@
 		    <sequential>
 		      <java classname="@{classname}" fork="@{fork}" failonerror="true">
 		        <classpath refid="master-classpath" />
-		      	<jvmarg value="-javaagent:kieker-1.7_aspectj.jar"/>
+<!--		      	<jvmarg value="-javaagent:kieker-1.7_aspectj.jar"/>-->
 		      	<!-- jvmarg value="-debug"/ -->
 		      	<classpath path="lib"/>
 		      	<classpath path="lib/kieker-1.7.jar"/>
-		      	<sysproperty key="org.aspectj.weaver.loadtime.configuration" value="file:/home/rju/Projects/CoCoME/CoCoME-SPP/trunk/src/cocome-impl/lib/META-INF/aop.xml"/>
-		      	<sysproperty key="org.aspectj.weaver.debug" value="true"/>
-		      	<sysproperty key="org.aspectj.weaving.messages" value="true"/>
-		      	<sysproperty key="org.aspectj.weaver.showWeaveInfo" value="true" />
-		      	<sysproperty key="aj.weaving.verbose" value="true" />
+<!--		      	<sysproperty key="org.aspectj.weaver.loadtime.configuration" value="file:/home/rju/Projects/CoCoME/CoCoME-SPP/trunk/src/cocome-impl/lib/META-INF/aop.xml"/>-->
+<!--		      	<sysproperty key="org.aspectj.weaver.debug" value="true"/>-->
+<!--		      	<sysproperty key="org.aspectj.weaving.messages" value="true"/>-->
+<!--		      	<sysproperty key="org.aspectj.weaver.showWeaveInfo" value="true" />-->
+<!--		      	<sysproperty key="aj.weaving.verbose" value="true" />-->
 		        <sysproperty key="com.sun.management.jmxremote" value="true" />
 		        <sysproperty key="java.security.policy" value="${absolute.security.policy}" />
 		        <sysproperty key="application.log.file" value="${absolute.log.dir}/@{logname}.log" />
